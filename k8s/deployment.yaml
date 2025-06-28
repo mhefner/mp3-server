@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mp3-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mp3-server
+  template:
+    metadata:
+      labels:
+        app: mp3-server
+    spec:
+      containers:
+      - name: mp3
+        image: mhefner1983/mp3-server:arm
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: mp3-nfs
+          mountPath: /usr/src/app
+      volumes:
+      - name: mp3-nfs
+        persistentVolumeClaim:
+          claimName: mp3-pvc
