@@ -3,11 +3,10 @@ from flask import Flask, request, send_from_directory, render_template_string
 import os
 
 # Set the directory where uploaded MP3 files will be stored
-UPLOAD_FOLDER = '/mp3-files'
+UPLOAD_FOLDER = '/mp3-files'  # Changed from '/usr/src/app' to '/mp3-files'
 
 # Create Flask application instance
 app = Flask(__name__)
-
 # Configure the upload folder for the Flask app
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -19,22 +18,22 @@ HTML_TEMPLATE = """
 <!doctype html>
 <html>
 <head>
-  <title>MP3 Server</title>
+    <title>MP3 Server</title>
 </head>
 <body>
-  <h1>MP3 Server</h1>
-  <ul>
+    <h1>MP3 Server</h1>
+    <ul>
     <!-- Loop through each MP3 file and create a clickable link -->
     {% for file in files %}
-      <li><a href="{{ file }}">{{ file }}</a></li>
+        <li><a href="{{ file }}">{{ file }}</a></li>
     {% endfor %}
-  </ul>
-  <hr>
-  <!-- File upload form that accepts only MP3 files -->
-  <form method="POST" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".mp3">
-    <input type="submit" value="Upload">
-  </form>
+    </ul>
+    <hr>
+    <!-- File upload form that accepts only MP3 files -->
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".mp3">
+        <input type="submit" value="Upload">
+    </form>
 </body>
 </html>
 """
@@ -46,7 +45,6 @@ def index():
     if request.method == 'POST':
         # Get the uploaded file from the form
         uploaded_file = request.files.get('file')
-        
         # Check if a file was actually uploaded
         if uploaded_file:
             # Create the full path where the file will be saved
@@ -54,8 +52,18 @@ def index():
             # Save the uploaded file to the server
             uploaded_file.save(path)
     
-    # Get list of all MP3 files in the upload directory
-    files = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith('.mp3')]
+    # Debug: Check directory and files
+    try:
+        print(f"Looking for files in: {UPLOAD_FOLDER}")
+        print(f"Directory exists: {os.path.exists(UPLOAD_FOLDER)}")
+        all_files = os.listdir(UPLOAD_FOLDER)
+        print(f"All files found: {all_files}")
+        files = [f for f in all_files if f.endswith('.mp3')]
+        print(f"MP3 files found: {files}")
+        print(f"Number of MP3 files: {len(files)}")
+    except Exception as e:
+        print(f"Error reading directory: {e}")
+        files = []
     
     # Render the HTML template with the list of MP3 files
     return render_template_string(HTML_TEMPLATE, files=files)
