@@ -8,6 +8,6 @@ spec:
   accessModes:
     - ReadWriteMany
   nfs:
-    path: /mnt/storage/mp3
+    path: /mnt/storage/mp3s
     server: 10.0.0.60
   persistentVolumeReclaimPolicy: Retain
