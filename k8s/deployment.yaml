@@ -15,6 +15,7 @@ spec:
       containers:
       - name: mp3
         image: mhefner1983/mp3-server:arm
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         volumeMounts:
