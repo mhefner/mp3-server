@@ -3,7 +3,7 @@ from flask import Flask, request, send_from_directory, render_template_string
 import os
 
 # Set the directory where uploaded MP3 files will be stored
-UPLOAD_FOLDER = '/usr/src/app'
+UPLOAD_FOLDER = '/mp3-files'
 
 # Create Flask application instance
 app = Flask(__name__)

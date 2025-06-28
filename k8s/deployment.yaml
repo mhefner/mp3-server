@@ -13,14 +13,14 @@ spec:
         app: mp3-server
     spec:
       containers:
-      - name: mp3
+      - name: mp3-server  # You can change this to mp3 if you prefer
         image: mhefner1983/mp3-server:arm
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
         volumeMounts:
         - name: mp3-nfs
-          mountPath: /usr/src/app
+          mountPath: /mp3-files  # Mount to a different directory!
       volumes:
       - name: mp3-nfs
         persistentVolumeClaim:
