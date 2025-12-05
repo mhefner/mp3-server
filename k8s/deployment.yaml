@@ -1,54 +1,27 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: n8n
-  labels:
-    app: n8n
+  name: mp3-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: n8n
+      app: mp3-server
   template:
     metadata:
       labels:
-        app: n8n
+        app: mp3-server
     spec:
-      # FIX 1: Prevent K8s from overwriting N8N_PORT with service info
-      enableServiceLinks: false 
-      
-      # FIX 2: Ensure the volume is writable by the 'node' user (UID 1000)
-      securityContext:
-        fsGroup: 1000
-        runAsUser: 1000
-        runAsGroup: 1000
-      
       containers:
-      - name: n8n
-        image: n8nio/n8n:latest
+      - name: mp3-server  # You can change this to mp3 if you prefer
+        image: mhefner1983/mp3-server:arm
+        imagePullPolicy: Always
         ports:
-        - containerPort: 5678
-        env:
-        - name: DB_TYPE
-          value: "sqlite"
-        - name: N8N_BASIC_AUTH_ACTIVE
-          value: "true"
-        - name: N8N_BASIC_AUTH_USER
-          valueFrom:
-            secretKeyRef:
-              name: n8n-auth
-              key: username
-        - name: N8N_BASIC_AUTH_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: n8n-auth
-              key: password
-        - name: N8N_SECURE_COOKIE
-          value: "false"
+        - containerPort: 8080
         volumeMounts:
-        - name: n8n-data
-          mountPath: /home/node/.n8n
+        - name: mp3-nfs
+          mountPath: /mp3-files  # Mount to a different directory!
       volumes:
-      - name: n8n-data
+      - name: mp3-nfs
         persistentVolumeClaim:
-          claimName: n8n-pvc
+          claimName: mp3-pvc
