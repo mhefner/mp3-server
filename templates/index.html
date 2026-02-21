@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MP3 Server</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0d0d0d;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    .app {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0 16px;
+      overflow-y: auto;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #64748b;
+      padding: 0 20px 12px;
+    }
+
+    .category-list {
+      list-style: none;
+      flex: 1;
+    }
+
+    .category-list a {
+      display: block;
+      padding: 9px 20px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 14px;
+      border-left: 3px solid transparent;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+
+    .category-list a:hover {
+      color: #e2e8f0;
+      background: rgba(59,130,246,0.08);
+    }
+
+    .category-list a.active {
+      color: #3b82f6;
+      border-left-color: #3b82f6;
+      background: rgba(59,130,246,0.12);
+      font-weight: 600;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px 0;
+      border-top: 1px solid #2a2a3e;
+      margin-top: 16px;
+    }
+
+    .upload-btn {
+      width: 100%;
+      padding: 9px 0;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .upload-btn:hover { background: #2563eb; }
+
+    /* ── Main content ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      padding: 20px 28px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #1e1e2e;
+    }
+
+    .topbar h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .topbar .category-badge {
+      font-size: 12px;
+      background: rgba(59,130,246,0.2);
+      color: #3b82f6;
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-weight: 600;
+    }
+
+    .track-count {
+      margin-left: auto;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .card-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 16px;
+      align-content: start;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #475569;
+      padding: 60px 0;
+      font-size: 15px;
+    }
+
+    /* ── Track card ── */
+    .card {
+      background: #1e1e2e;
+      border-radius: 10px;
+      padding: 16px;
+      min-height: 160px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.15s, transform 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .card:hover {
+      background: #2a2a3e;
+      transform: translateY(-2px);
+      border-color: #3b82f6;
+    }
+
+    .card.playing {
+      border-color: #3b82f6;
+      background: #1e2a3e;
+    }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    .card-icon svg { width: 24px; height: 24px; fill: #fff; }
+
+    .play-overlay {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      background: #3b82f6;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .play-overlay svg { width: 14px; height: 14px; fill: #fff; margin-left: 2px; }
+
+    .card:hover .play-overlay { opacity: 1; }
+    .card.playing .play-overlay { opacity: 1; background: #2563eb; }
+
+    .card-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-all;
+      flex: 1;
+    }
+
+    .cat-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(99,102,241,0.2);
+      color: #818cf8;
+      padding: 2px 7px;
+      border-radius: 4px;
+      align-self: flex-start;
+    }
+
+    /* ── Bottom player ── */
+    .player-bar {
+      background: #111827;
+      border-top: 1px solid #1e1e2e;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 70px;
+    }
+
+    .player-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ctrl-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .ctrl-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.06); }
+
+    .ctrl-btn.play-pause {
+      width: 40px;
+      height: 40px;
+      background: #3b82f6;
+      color: #fff;
+    }
+
+    .ctrl-btn.play-pause:hover { background: #2563eb; }
+
+    .ctrl-btn svg { width: 18px; height: 18px; }
+
+    .player-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .now-playing {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .scrub-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .time-display {
+      font-size: 11px;
+      color: #64748b;
+      white-space: nowrap;
+      min-width: 80px;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 4px;
+      background: #2a2a3e;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    input[type="range"].volume {
+      width: 80px;
+      flex: none;
+    }
+
+    .volume-icon {
+      color: #64748b;
+      display: flex;
+      align-items: center;
+    }
+
+    .volume-icon svg { width: 16px; height: 16px; }
+
+    /* ── Upload modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #1a1a2e;
+      border: 1px solid #2a2a3e;
+      border-radius: 12px;
+      padding: 28px;
+      width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal h2 { font-size: 16px; font-weight: 700; color: #f1f5f9; }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label { font-size: 12px; color: #94a3b8; font-weight: 600; }
+
+    .form-group input[type="text"],
+    .form-group input[type="file"] {
+      background: #0d0d0d;
+      border: 1px solid #2a2a3e;
+      border-radius: 6px;
+      color: #e2e8f0;
+      padding: 8px 12px;
+      font-size: 13px;
+      outline: none;
+      width: 100%;
+    }
+
+    .form-group input[type="text"]:focus {
+      border-color: #3b82f6;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn-cancel {
+      background: none;
+      border: 1px solid #2a2a3e;
+      color: #94a3b8;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .btn-cancel:hover { border-color: #475569; color: #e2e8f0; }
+
+    .btn-upload {
+      background: #3b82f6;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-upload:hover { background: #2563eb; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <p class="sidebar-title">Categories</p>
+    <ul class="category-list">
+      <li>
+        <a href="/" class="{{ 'active' if not selected }}">All Tracks</a>
+      </li>
+      {% for cat in categories %}
+      <li>
+        <a href="/?category={{ cat }}" class="{{ 'active' if selected == cat }}">{{ cat }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="sidebar-footer">
+      <button class="upload-btn" onclick="openModal()">+ Upload Track</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <h1>MP3 Server</h1>
+      {% if selected %}
+        <span class="category-badge">{{ selected }}</span>
+      {% endif %}
+      <span class="track-count">{{ files|length }} track{{ 's' if files|length != 1 }}</span>
+    </div>
+
+    <div class="card-grid" id="cardGrid">
+      {% if files %}
+        {% for f in files %}
+        <div class="card" id="card-{{ loop.index0 }}"
+             onclick="playTrack('{{ f.path }}', '{{ f.name[:-4] }}', {{ loop.index0 }})">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+          </div>
+          <div class="play-overlay">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="card-name" title="{{ f.name }}">{{ f.name[:-4] }}</div>
+          {% if f.category %}
+            <span class="cat-badge">{{ f.category }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">No MP3 files found{% if selected %} in "{{ selected }}"{% endif %}.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Bottom player -->
+<div class="player-bar">
+  <audio id="player"></audio>
+
+  <div class="player-controls">
+    <button class="ctrl-btn" onclick="prevTrack()" title="Previous">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+    </button>
+    <button class="ctrl-btn play-pause" id="playBtn" onclick="togglePlay()" title="Play/Pause">
+      <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button class="ctrl-btn" onclick="nextTrack()" title="Next">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2-8.14 5.27 2.14L8 14.14V9.86zM16 6h2v12h-2z"/></svg>
+    </button>
+  </div>
+
+  <div class="player-info">
+    <div class="now-playing" id="nowPlaying">No track selected</div>
+    <div class="scrub-row">
+      <input type="range" id="scrubber" value="0" min="0" max="100" step="0.1">
+      <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+    </div>
+  </div>
+
+  <div class="volume-icon">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+    </svg>
+  </div>
+  <input type="range" id="volumeSlider" class="volume" min="0" max="1" step="0.02" value="1">
+</div>
+
+<!-- Upload modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Upload Track</h2>
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+      <div class="form-group">
+        <label for="fileInput">MP3 File</label>
+        <input type="file" name="file" id="fileInput" accept=".mp3" required>
+      </div>
+      <div class="form-group" style="margin-top:4px">
+        <label for="categoryInput">Category (subfolder)</label>
+        <input type="text" name="category" id="categoryInput"
+               placeholder="e.g. blues, rock (leave blank for none)"
+               value="{{ selected }}">
+      </div>
+      <div class="modal-actions" style="margin-top:8px">
+        <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-upload">Upload</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const player       = document.getElementById('player');
+  const playBtn      = document.getElementById('playBtn');
+  const playIcon     = document.getElementById('playIcon');
+  const nowPlaying   = document.getElementById('nowPlaying');
+  const scrubber     = document.getElementById('scrubber');
+  const timeDisplay  = document.getElementById('timeDisplay');
+  const volumeSlider = document.getElementById('volumeSlider');
+
+  // Build playlist from server-rendered data
+  const playlist = [
+    {% for f in files %}
+    { path: "{{ f.path }}", name: "{{ f.name[:-4] }}", idx: {{ loop.index0 }} }{{ ',' if not loop.last }}
+    {% endfor %}
+  ];
+
+  let currentIdx = -1;
+
+  const PLAY_SVG  = '<path d="M8 5v14l11-7z"/>';
+  const PAUSE_SVG = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+
+  function formatTime(s) {
+    if (isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  }
+
+  function setPlayIcon(playing) {
+    playIcon.innerHTML = playing ? PAUSE_SVG : PLAY_SVG;
+  }
+
+  function clearActiveCard() {
+    document.querySelectorAll('.card.playing').forEach(c => c.classList.remove('playing'));
+  }
+
+  function playTrack(path, name, idx) {
+    clearActiveCard();
+    currentIdx = idx;
+    player.src = '/' + path;
+    player.play();
+    nowPlaying.textContent = name;
+    setPlayIcon(true);
+    const card = document.getElementById('card-' + idx);
+    if (card) card.classList.add('playing');
+  }
+
+  function togglePlay() {
+    if (currentIdx === -1 && playlist.length > 0) {
+      const t = playlist[0];
+      playTrack(t.path, t.name, t.idx);
+      return;
+    }
+    if (player.paused) {
+      player.play();
+      setPlayIcon(true);
+    } else {
+      player.pause();
+      setPlayIcon(false);
+    }
+  }
+
+  function prevTrack() {
+    if (playlist.length === 0) return;
+    const next = currentIdx <= 0 ? playlist.length - 1 : currentIdx - 1;
+    const t = playlist[next];
+    playTrack(t.path, t.name, t.idx);
+  }
+
+  function nextTrack() {
+    if (playlist.length === 0) return;
+    const next = (currentIdx + 1) % playlist.length;
+    const t = playlist[next];
+    playTrack(t.path, t.name, t.idx);
+  }
+
+  player.addEventListener('ended', nextTrack);
+
+  player.addEventListener('timeupdate', () => {
+    const pct = (player.currentTime / player.duration) * 100 || 0;
+    scrubber.value = pct;
+    timeDisplay.textContent = `${formatTime(player.currentTime)} / ${formatTime(player.duration)}`;
+  });
+
+  scrubber.addEventListener('input', () => {
+    if (player.duration) {
+      player.currentTime = (scrubber.value / 100) * player.duration;
+    }
+  });
+
+  player.addEventListener('play',  () => setPlayIcon(true));
+  player.addEventListener('pause', () => setPlayIcon(false));
+
+  volumeSlider.addEventListener('input', () => {
+    player.volume = volumeSlider.value;
+  });
+
+  // Modal
+  function openModal()  { document.getElementById('modalOverlay').classList.add('open'); }
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+  document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 RUN pip install flask
 
-COPY app.py .
+COPY . .
 
 EXPOSE 8080
 
